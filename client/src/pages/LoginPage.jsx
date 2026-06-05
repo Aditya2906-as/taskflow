@@ -40,6 +40,12 @@ export default function LoginPage() {
               onChange={handle} required />
           </div>
           {error && <p className="form-error">{error}</p>}
+          <div style={{ textAlign: 'right', marginTop: -6 }}>
+            <Link to="/forgot-password"
+              style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>
+              Forgot password?
+            </Link>
+          </div>
           <button className="btn btn-primary w-full" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign in'}
           </button>

@@ -26,6 +26,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/chat',          require('./routes/chat'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/ai',            require('./routes/ai'));
+app.use('/api/wiki',          require('./routes/wiki'));
 
 // Socket
 require('./socket')(io);

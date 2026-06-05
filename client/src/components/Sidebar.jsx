@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useSocket } from '../context/SocketContext';
@@ -7,6 +7,7 @@ const COLORS = ['#5b8def','#34d399','#a78bfa','#fbbf24','#f87171','#22d3ee'];
 
 export default function Sidebar({ open, onClose }) {
   const { pathname } = useLocation();
+  const { id: boardId } = useParams();
   const { socket }   = useSocket();
   const [boards, setBoards] = useState([]);
 
@@ -45,7 +46,15 @@ export default function Sidebar({ open, onClose }) {
           onClick={onClose}>
           <i className="ti ti-settings"></i> Settings
         </Link>
-
+        {boardId && (
+          <Link to={`/board/${boardId}/wiki`}
+            className={`sidebar-item ${pathname.includes('/wiki') ? 'active' : ''}`}
+            onClick={onClose}
+          >
+            <i className="ti ti-book-2"></i>
+            <span>Wiki</span>
+          </Link>
+        )}
         <div className="sidebar-section">Boards</div>
         {boards.map((b, i) => (
           <Link key={b.id} to={`/board/${b.id}`}
@@ -86,6 +95,14 @@ export default function Sidebar({ open, onClose }) {
             <i className="ti ti-sparkles"></i>
             <span>AI Assistant</span>
             <span className="ai-badge">AI</span>
+          </Link>
+          <Link to="/ai-generator"
+            className={`sidebar-item sidebar-bottom-item ai-btn ${isActive('/ai-generator') ? 'active' : ''}`}
+            onClick={onClose}
+          >
+            <i className="ti ti-wand"></i>
+            <span>AI Generator</span>
+            <span className="ai-badge">NEW</span>
           </Link>
         </div>
       </aside>

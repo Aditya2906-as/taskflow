@@ -163,6 +163,9 @@ export default function BoardPage() {
         >
           <i className="ti ti-message-circle" style={{ fontSize:13 }}></i> Chat
         </button>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/board/${id}/wiki`)}>
+          <i className="ti ti-book-2"></i> Wiki
+        </button>
       </div>
 
       {/* Board + Chat layout */}

@@ -1,7 +1,12 @@
-const r = require('express').Router();
-const c = require('../controllers/authController');
-const auth = require('../middleware/authMiddleware');
-r.post('/register', c.register);
-r.post('/login',    c.login);
-r.get('/me',        auth, c.me);
-module.exports = r;
+const router = require('express').Router();
+const auth   = require('../middleware/authMiddleware');
+const c      = require('../controllers/authController');
+
+router.post('/register',        c.register);
+router.post('/login',           c.login);
+router.get ('/me',              auth, c.me);
+router.post('/forgot-password', c.forgotPassword);
+router.post('/verify-otp',      c.verifyOTP);
+router.post('/reset-password',  c.resetPassword);
+
+module.exports = router;
