@@ -76,7 +76,6 @@ export default function Navbar({ onMenuClick }) {
             <path d="M23.5 24.5 L27 28 L23.5 31.5" stroke="#5b8def" stroke-width="1.8"
               stroke-linecap="round" stroke-linejoin="round" fill="none"/>
           </svg>
-          <span className="navbar-logo-text">TaskFlow</span>
         </Link>
         <span className="navbar-logo-text">TaskFlow</span>
       </Link>
