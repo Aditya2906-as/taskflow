@@ -4,10 +4,12 @@ import TaskCard from './TaskCard';
 import api from '../api/axios';
 
 const COL_COLORS = {
-  'To Do': '#5b8def', 'In Progress': '#fbbf24', 'Done': '#34d399'
+  'To Do': '#5b8def', 'In Progress': '#fbbf24', 'Done': '#34d399',
+  'Planning': '#a78bfa', 'Design': '#f472b6',
+  'Development': '#5b8def', 'Testing': '#34d399',
 };
 
-export default function Column({ column, tasks, boardId, socket, members, onTaskAdded, onTaskDeleted }) {
+export default function Column({ column, tasks, boardId, socket, members, onTaskAdded, onTaskDeleted, onTaskUpdated }) {
   const [adding, setAdding]     = useState(false);
   const [title, setTitle]       = useState('');
   const [priority, setPriority] = useState('medium');
@@ -38,7 +40,7 @@ export default function Column({ column, tasks, boardId, socket, members, onTask
   return (
     <div ref={setNodeRef} className="k-col">
       <div className="k-col-header">
-        <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <div className="k-col-dot" style={{ background: dotColor }}></div>
           <span className="k-col-title">{column.title}</span>
         </div>
@@ -47,12 +49,18 @@ export default function Column({ column, tasks, boardId, socket, members, onTask
 
       <div className="k-col-body">
         {tasks.length === 0 && !adding && (
-          <div style={{ textAlign:'center', padding:'16px 0', color:'var(--text3)', fontSize:12 }}>
+          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text3)', fontSize: 12 }}>
             Drop tasks here
           </div>
         )}
         {tasks.map(task => (
-          <TaskCard key={task.id} task={task} onDelete={onTaskDeleted} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            members={members}
+            onDelete={onTaskDeleted}
+            onUpdate={onTaskUpdated}
+          />
         ))}
       </div>
 
@@ -70,20 +78,20 @@ export default function Column({ column, tasks, boardId, socket, members, onTask
                 if (e.key === 'Escape') { setAdding(false); setTitle(''); }
               }}
             />
-            <div style={{ display:'flex', gap:6 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
               <select className="input" value={priority} onChange={e => setPriority(e.target.value)}
-                style={{ fontSize:12, padding:'5px 8px', flex:1 }}>
+                style={{ fontSize: 12, padding: '5px 8px', flex: 1 }}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
               </select>
               <input type="date" className="input" value={dueDate}
                 onChange={e => setDueDate(e.target.value)}
-                style={{ fontSize:12, padding:'5px 8px', flex:1 }} />
+                style={{ fontSize: 12, padding: '5px 8px', flex: 1 }} />
             </div>
             {members.length > 0 && (
               <select className="input" value={assignee} onChange={e => setAssignee(e.target.value)}
-                style={{ fontSize:12, padding:'5px 8px' }}>
+                style={{ fontSize: 12, padding: '5px 8px' }}>
                 <option value="">Unassigned</option>
                 {members.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
@@ -103,7 +111,7 @@ export default function Column({ column, tasks, boardId, socket, members, onTask
           </div>
         ) : (
           <button className="add-task-trigger" onClick={() => setAdding(true)}>
-            <i className="ti ti-plus" style={{ fontSize:13 }}></i> Add a task
+            <i className="ti ti-plus" style={{ fontSize: 13 }}></i> Add a task
           </button>
         )}
       </div>

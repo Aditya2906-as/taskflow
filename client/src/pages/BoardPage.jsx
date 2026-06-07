@@ -111,6 +111,11 @@ export default function BoardPage() {
     socket?.emit('task-created', { boardId: id, task });
   };
 
+  const onTaskUpdated = (task) => {
+    setTasks(p => p.map(t => t.id === task.id ? task : t));
+    socket?.emit('task-updated', { boardId: id, task });
+  };
+
   const onTaskDeleted = async (taskId) => {
     setTasks(p => p.filter(t => t.id !== taskId));
     try {
@@ -118,6 +123,8 @@ export default function BoardPage() {
       socket?.emit('task-deleted', { boardId: id, taskId });
     } catch {}
   };
+
+  
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'calc(100vh - 52px)' }}>
@@ -189,6 +196,7 @@ export default function BoardPage() {
                   members={members}
                   onTaskAdded={onTaskAdded}
                   onTaskDeleted={onTaskDeleted}
+                  onTaskUpdated={onTaskUpdated}
                 />
               </SortableContext>
             ))}

@@ -65,7 +65,19 @@ export default function Navbar({ onMenuClick }) {
       </button>
 
       <Link to="/" className="navbar-logo">
-        <div className="logo-icon">T</div>
+        <Link to="/" className="navbar-logo">
+          <svg width="32" height="32" viewBox="0 0 36 36" fill="none"
+            xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+            <rect width="36" height="36" rx="9" fill="#1c2235"/>
+            <rect x="5"  y="7" width="6" height="16" rx="2" fill="#5b8def"/>
+            <rect x="13" y="7" width="6" height="11" rx="2" fill="#a78bfa"/>
+            <rect x="21" y="7" width="6" height="7"  rx="2" fill="#34d399"/>
+            <path d="M6 28 L27 28" stroke="#5b8def" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M23.5 24.5 L27 28 L23.5 31.5" stroke="#5b8def" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+          <span className="navbar-logo-text">TaskFlow</span>
+        </Link>
         <span className="navbar-logo-text">TaskFlow</span>
       </Link>
       <div className="navbar-sp" />

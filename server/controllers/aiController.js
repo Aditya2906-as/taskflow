@@ -1,4 +1,11 @@
 const pool = require('../db');
+const { randomUUID } = require('crypto');
+
+// ─── Groq config ─────────────────────────────────────────
+const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+// ─── AI Chat ─────────────────────────────────────────────
 exports.chat = async (req, res) => {
   const { messages } = req.body;
   if (!messages?.length)
@@ -9,16 +16,6 @@ exports.chat = async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
-
-    // Use Gemini 2.5 Flash (or your preferred Gemini model) and the correct streaming endpoint
-    const model = 'gemini-2.5-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-    // Map incoming messages to Gemini's strict format { role: 'user'|'model', parts: [{ text: '' }] }
-    const formattedMessages = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
 
     const systemInstructionText = `You are TaskFlow AI, a helpful productivity assistant embedded in the TaskFlow project management app.
 You help users with:
@@ -31,23 +28,24 @@ You help users with:
 Keep responses concise, practical, and actionable. Use markdown formatting when helpful.
 Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
-    const response = await fetch(url, {
+    const response = await fetch(GROQ_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': process.env.GEMINI_API_KEY, // Uses your Gemini environment variable
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        contents: formattedMessages,
-        systemInstruction: {
-          parts: [{ text: systemInstructionText }]
-        },
-        generationConfig: {
-          maxOutputTokens: 1024
-        }
+        model: GROQ_MODEL,
+        max_tokens: 1024,
+        messages: [
+          { role: 'system', content: systemInstructionText },
+          ...messages.map(m => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+          }))
+        ]
       })
-    })
-    console.log(await response.clone().text());
+    });
 
     if (!response.ok) {
       const err = await response.text();
@@ -55,83 +53,112 @@ Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 
       return res.end();
     }
 
-    // const reader = response.body.getReader();
-   const data = await response.json();
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content || 'No response from Groq';
 
-    console.log("Gemini response:", JSON.stringify(data, null, 2));
-
-    const text =
-    data?.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("") || "No response from Gemini";
-
-    res.write(
-    `data: ${JSON.stringify({
-        text
-    })}\n\n`
-    );
-
-    res.write("data: [DONE]\n\n");
-    res.end()
-    } catch (err) {
+    res.write(`data: ${JSON.stringify({ text })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
     res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
     res.end();
   }
 };
 
+// ─── Helper: call Groq and get project JSON ───────────────
+async function callGroqForProject(prompt) {
+  const groqRes = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.GROQ_GENERATOR_KEY}`
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a project management AI. Respond ONLY with valid JSON — no markdown, no explanation, no backticks.'
+        },
+        {
+          role: 'user',
+          content: `Create a detailed project board for: "${prompt}"
 
-// ─── AI Project Generator ─────────────────────────────────
-const { randomUUID } = require('crypto');
+Respond ONLY with this exact JSON format:
+{
+  "boardName": "short project name (3-5 words)",
+  "columns": [
+    {
+      "title": "column name",
+      "tasks": [
+        {
+          "title": "task title starting with an action verb",
+          "description": "2-3 sentence explanation of what this task involves, why it matters, and what done looks like",
+          "daysFromNow": 7
+        }
+      ]
+    }
+  ]
+}
 
-exports.generateProject = async (req, res) => {
+Rules:
+- Exactly 4 columns in this order: Planning, Design, Development, Testing
+- Each column must have exactly 5 tasks
+- Task titles must start with action verbs (Set up, Create, Build, Design, Write, Define, Test, etc.)
+- Descriptions must be specific and meaningful — 2 to 3 sentences each
+- daysFromNow: Planning 3-12, Design 10-22, Development 20-45, Testing 38-60
+- All 20 tasks must be unique and relevant to the project`
+        }
+      ]
+    })
+  });
+
+  const groqData = await groqRes.json();
+
+  if (!groqData.choices?.length) {
+    console.error('Groq response:', JSON.stringify(groqData, null, 2));
+    throw new Error('Empty response from Groq');
+  }
+
+  const raw = groqData.choices[0]?.message?.content;
+  if (!raw) throw new Error('Empty response from Groq');
+
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleaned);
+}
+
+// ─── Preview Project (returns JSON only, no DB write) ─────
+exports.previewProject = async (req, res) => {
   const { prompt } = req.body;
-  if (!prompt?.trim())
-    return res.status(400).json({ error: 'Prompt required' });
+  if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt required' });
+  try {
+    const data = await callGroqForProject(prompt);
+    res.json(data);
+  } catch (err) {
+    console.error('previewProject error:', err.message);
+    res.status(500).json({ error: 'AI generation failed. Please try again.' });
+  }
+};
+
+// ─── Create Project (saves preview JSON to DB) ────────────
+exports.createProject = async (req, res) => {
+  const { preview } = req.body;
+  if (!preview?.boardName || !preview?.columns?.length)
+    return res.status(400).json({ error: 'Invalid preview data' });
 
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Create a project board for: "${prompt}"
-                Respond ONLY in JSON, no markdown.
-                {"boardName":"string","columns":[{"title":"string","tasks":[{"title":"string","description":"string","daysFromNow":number}]}]}
-                Rules: 4 columns (Planning,Design,Development,Testing), 4 tasks each, daysFromNow spread 1-60.`            }]
-          }]
-        })
-      }
-    );
-
-    const geminiData = await geminiRes.json();
-    if (!geminiData.candidates || geminiData.candidates.length === 0) {
-      console.error('Gemini full response:', JSON.stringify(geminiData, null, 2));
-      throw new Error('Empty response from Gemini');
-    }
-    const raw = geminiData.candidates[0]?.content?.parts?.[0]?.text;
-    if (!raw) {
-      console.error('Gemini candidate:', JSON.stringify(geminiData.candidates[0], null, 2));
-      throw new Error('Empty response from Gemini');
-    }
-
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    const data    = JSON.parse(cleaned);
-
-    // ── Create board in DB ──
     const boardId = randomUUID();
     await pool.query(
       'INSERT INTO boards (id,name,owner_id) VALUES (?,?,?)',
-      [boardId, data.boardName, req.userId]
+      [boardId, preview.boardName, req.userId]
     );
 
     const now = new Date();
     const createdColumns = [];
 
-    for (let ci = 0; ci < data.columns.length; ci++) {
-      const col   = data.columns[ci];
+    for (let ci = 0; ci < preview.columns.length; ci++) {
+      const col   = preview.columns[ci];
       const colId = randomUUID();
 
       await pool.query(
@@ -167,6 +194,20 @@ exports.generateProject = async (req, res) => {
     );
 
     res.status(201).json({ board, columns: createdColumns });
+  } catch (err) {
+    console.error('createProject error:', err.message);
+    res.status(500).json({ error: 'Failed to create board.' });
+  }
+};
+
+// ─── Generate Project (old single-step, kept for compat) ──
+exports.generateProject = async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt required' });
+  try {
+    const data    = await callGroqForProject(prompt);
+    const fakeReq = { body: { preview: data }, userId: req.userId };
+    exports.createProject(fakeReq, res);
   } catch (err) {
     console.error('generateProject error:', err.message);
     res.status(500).json({ error: 'AI generation failed. Please try again.' });
